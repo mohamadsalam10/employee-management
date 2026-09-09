@@ -1,11 +1,12 @@
 services:
   - type: web
-    name: team-attendance
+    name: storage-ae-ops
     runtime: node
     plan: free
     buildCommand: npm install
     startCommand: node server.js
     envVars:
+      # --- single branch (simplest) ---
       - key: DEVICE_HOST
         sync: false
       - key: DEVICE_PORT
@@ -14,11 +15,21 @@ services:
         value: admin
       - key: DEVICE_PASS
         sync: false
+      - key: BRANCH_NAME
+        value: Al Quoz
+      # --- login ---
       - key: DASHBOARD_PASSWORD
         sync: false
       - key: SESSION_SECRET
         generateValue: true
+      # --- display / behaviour ---
       - key: TZ_OFFSET
         value: "+04:00"
       - key: ENABLE_DOORS
         value: "false"
+      # Cameras: JSON list, e.g. [{"label":"Entrance","channel":"101"}]
+      - key: CAMERAS
+        sync: false
+      # For MULTIPLE branches, set BRANCHES instead of the DEVICE_* vars above (see README)
+      # - key: BRANCHES
+      #   sync: false

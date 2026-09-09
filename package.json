@@ -1,12 +1,8 @@
 {
-  "name": "team-attendance-dashboard",
+  "name": "storage-ae-warehouse-ops",
   "version": "1.0.0",
-  "description": "Attendance dashboard for a Hikvision-style ISAPI access-control device",
+  "description": "storage.ae warehouse operations dashboard — attendance, cameras, metrics, alerts",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": ">=18"
-  }
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
 }

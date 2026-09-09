@@ -1,89 +1,106 @@
-# Team Attendance Dashboard
+# storage.ae — Warehouse operations dashboard
 
-A web dashboard for viewing your team's attendance (punch in/out) from a
-Hikvision-style ISAPI access-control device. Built to run on [Render](https://render.com).
+A login-protected dashboard for your warehouse branches. It reads punch events from your
+Hikvision access-control device and shows:
 
-- **Login-protected** — nobody sees the board without the password you set.
-- **No secrets in the code** — the device password lives in Render's settings, not in this repo.
-- **Door control is off by default**, so a public link can't unlock anything.
+- **Live** — who's on site right now, plus today's late-arrival and early-leave alerts.
+- **History** — pick any day and see each employee's arrival, last-out, hours, and flags.
+- **Employees** — per-employee monthly metrics: average punch-in, average punch-out, average hours, times late, early leaves.
+- **Cameras** — near-live snapshots from each branch's cameras.
+- **Settings** — set working hours (a default plus per-employee overrides) and choose which alerts you want.
 
----
-
-## What you'll set (environment variables)
-
-These go into **Render's settings**, never into the code:
-
-| Variable | What it is | Example |
-|---|---|---|
-| `DEVICE_HOST` | Your device address | `800storage90.mynetgear.com` |
-| `DEVICE_PORT` | Device port | `50443` |
-| `DEVICE_USER` | Device username | `admin` |
-| `DEVICE_PASS` | Device password | *(your device password)* |
-| `DASHBOARD_PASSWORD` | The password **you pick** to log into this site | *(something strong)* |
-| `SESSION_SECRET` | Random string for logins — let Render generate it | *(auto)* |
-| `TZ_OFFSET` | Your timezone (Gulf = +04:00) | `+04:00` |
-| `ENABLE_DOORS` | Leave `false` unless you want remote unlock | `false` |
+The look follows the storage.ae design system (orange-first, sharp, Poppins).
 
 ---
 
-## Deploy to Render (using the blueprint)
+## How it works (plain version)
 
-This repo includes a `render.yaml`, so Render can set most of it up for you.
-
-1. **Put this project in a GitHub repo.** Create a free GitHub account if you
-   don't have one, make a new repository, and upload all these files to it
-   (GitHub's website lets you drag files straight into a repo).
-2. Go to **render.com**, sign up (you can sign in with GitHub), and on the
-   dashboard click **New → Blueprint**.
-3. Pick your repository. Render reads `render.yaml` and shows the service.
-4. It will **prompt you for the secret values**: `DEVICE_HOST`, `DEVICE_PASS`,
-   and `DASHBOARD_PASSWORD`. Fill those in. (`SESSION_SECRET` is generated for
-   you; the rest have defaults.)
-5. Click **Apply / Create**. Render installs and starts it (takes a minute or two).
-6. When it's live, Render gives you a URL like
-   `https://team-attendance.onrender.com`. Open it — you'll get the login page.
-   Enter the `DASHBOARD_PASSWORD` you chose.
-
-### If you prefer to set it up by hand
-
-Instead of the blueprint: **New → Web Service**, connect the repo, and set
-- **Build command:** `npm install`
-- **Start command:** `node server.js`
-
-Then add each environment variable from the table above under **Environment**,
-and deploy.
+Your camera/door device sits behind a self-signed certificate and needs digest login, so a
+browser can't read it directly. This small server sits in the middle: it logs in to the device,
+pulls the data, and serves you a clean dashboard. Deploy it once on Render and open it from any phone or laptop.
 
 ---
 
-## Good to know
+## Deploy on Render (about 10 minutes)
 
-- **Free plan sleeps.** On Render's free tier the site goes to sleep after a
-  while with no visitors, so the first load in the morning can take ~30–60
-  seconds to wake up. A paid instance stays awake. Either works.
-- **The device must stay reachable** at the address you set. If you can open
-  `https://DEVICE_HOST:PORT` from a phone on mobile data, Render can reach it too.
-- **Sessions last 12 hours**, then it asks for the password again.
-- **Changing the password** later: edit `DASHBOARD_PASSWORD` in Render and it
-  redeploys automatically.
+1. Put this folder in a **GitHub** repository (drag the files into a new repo, or use GitHub Desktop).
+2. Go to **render.com** → **New** → **Blueprint** → connect the repo. Render reads `render.yaml`.
+3. Fill in the values it asks for:
+   - `DEVICE_HOST` — your device address, e.g. `yourbranch.mynetgear.com` (no `https://`, no port)
+   - `DEVICE_PASS` — the device admin password
+   - `DASHBOARD_PASSWORD` — a **new** password you'll type to open the dashboard (make it different from the device password)
+   - `CAMERAS` — optional, e.g. `[{"label":"Main Entrance","channel":"101"}]`
+4. Click **Apply / Deploy**. When it's live, open the URL and sign in.
 
-## Cameras and doors (optional)
+That's it. To change a password or camera list later, edit the value under the service's
+**Environment** tab and it redeploys.
 
-- To show camera snapshots, set a `CAMERAS` variable to a JSON list, e.g.
-  `[{"label":"Entrance","channel":"101"}]`. The Cameras tab then shows stills.
-- Door unlock stays hidden unless you set `ENABLE_DOORS=true` **and** provide a
-  `DOORS` list. Only turn this on if you understand it lets logged-in users open
-  a physical door from anywhere.
+---
 
-## How in/out is decided
+## Settings you can set
 
-If the device tags events with an attendance status, that's used. Otherwise the
-first punch of a person's day is "in" and it alternates from there — correct in
-the normal case, and you can expand any row to see the raw punch times and check.
+| Variable | What it is |
+|---|---|
+| `DEVICE_HOST` | Device address (no `https://`, no port) |
+| `DEVICE_PORT` | Usually `50443` |
+| `DEVICE_USER` | Usually `admin` |
+| `DEVICE_PASS` | Device admin password |
+| `BRANCH_NAME` | Label shown in the dashboard |
+| `DASHBOARD_PASSWORD` | Password to open the dashboard |
+| `SESSION_SECRET` | Auto-generated by Render; leave it |
+| `TZ_OFFSET` | Branch timezone, `+04:00` for the UAE |
+| `ENABLE_DOORS` | `false` (keep off unless you want door-open buttons) |
+| `CAMERAS` | JSON list of `{label, channel}` |
 
-## Running it locally (optional)
+### More than one branch
+
+When you're ready for multiple warehouses, set **one** variable called `BRANCHES` instead of the
+`DEVICE_*` ones. It's a JSON list, one entry per branch:
+
+```json
+[
+  {"id":"alquoz","name":"Al Quoz","host":"alquoz.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00","cameras":[{"label":"Entrance","channel":"101"}]},
+  {"id":"dip","name":"DIP","host":"dip.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00","cameras":[]}
+]
+```
+
+The branch dropdown at the top of the sidebar switches between them.
+
+---
+
+## Working hours & alerts
+
+- **Working hours** (Settings): set a default start/end and a grace period, then add per-employee
+  overrides for anyone with different hours. Late and early-leave flags use these.
+- **Notifications** (Settings): tick which events matter (late, early leave, absence) and enter your
+  contact. Right now the **detection runs and shows on the Live tab**; actual sending (WhatsApp/SMS via
+  Respond, with templates) gets switched on in a later step — nothing to do yet.
+
+---
+
+## Two things to know
+
+1. **Cameras show fast snapshots, not a video stream.** The device serves still images over the API,
+   refreshed every few seconds. True continuous video needs a separate streaming gateway — a later add-on.
+2. **Saved settings reset on Render's free plan.** The free plan wipes the disk on each redeploy, so
+   working hours and notification choices don't persist across deploys. For durable storage we can point
+   this at your **Supabase** database (a small change) so nothing is lost. Ask when you want that.
+
+---
+
+## Running locally (optional)
 
 ```bash
-npm install        # nothing to install, but harmless
-DEVICE_HOST=... DEVICE_PASS=... DASHBOARD_PASSWORD=test node server.js
+npm start
 ```
-Then open http://localhost:3000.
+
+Then set the same variables in your shell or a `.env` first (see `.env.example`). Open `http://localhost:3000`.
+
+---
+
+## Security notes
+
+- The dashboard is password-protected; sessions last 12 hours.
+- Door control is **off** by default.
+- No passwords are stored in these files — they only live in Render's Environment settings.
+- Your device's admin login is reachable on the internet on its port; keep that password strong.
