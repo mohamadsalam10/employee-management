@@ -1,0 +1,12 @@
+{
+  "name": "team-attendance-dashboard",
+  "version": "1.0.0",
+  "description": "Attendance dashboard for a Hikvision-style ISAPI access-control device",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

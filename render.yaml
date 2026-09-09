@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: team-attendance
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DEVICE_HOST
+        sync: false
+      - key: DEVICE_PORT
+        value: 50443
+      - key: DEVICE_USER
+        value: admin
+      - key: DEVICE_PASS
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TZ_OFFSET
+        value: "+04:00"
+      - key: ENABLE_DOORS
+        value: "false"

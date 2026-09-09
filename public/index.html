@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attendance Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #f4f6f5;
+    --panel: #ffffff;
+    --ink: #16262a;
+    --muted: #5c6b6e;
+    --line: #e2e7e6;
+    --line-strong: #cfd8d6;
+    --present: #147a56;
+    --present-bg: #e6f3ec;
+    --away: #6a7a7d;
+    --away-bg: #eef1f1;
+    --accent: #0e6d77;
+    --alert: #b0541f;
+    --shadow: 0 1px 2px rgba(20,40,44,.06), 0 8px 24px rgba(20,40,44,.05);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+  }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Top bar */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 22px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+  .brand b { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .brand span { font-size: 13px; color: var(--muted); }
+  .conn { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--away); }
+  .dot.ok { background: var(--present); box-shadow: 0 0 0 3px var(--present-bg); }
+  .dot.bad { background: var(--alert); box-shadow: 0 0 0 3px #f6e6dc; }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  input[type=date], input[type=search] {
+    font: inherit; font-size: 14px; color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 7px 10px; background: var(--panel);
+  }
+  input[type=search] { min-width: 200px; }
+  .btn {
+    font: inherit; font-size: 13.5px; font-weight: 500;
+    border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink);
+    padding: 7px 13px; border-radius: 8px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.05); color: #fff; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  /* Tabs */
+  nav { display: flex; gap: 4px; padding: 0 22px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .tab {
+    font: inherit; font-size: 14px; font-weight: 500; color: var(--muted);
+    background: none; border: none; padding: 12px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+  main { padding: 22px; max-width: 1180px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Stat strip */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .stat .n { font-size: 34px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
+  .stat .n.present { color: var(--present); }
+  .stat .k { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  /* Roster */
+  .board { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .board-head, .row {
+    display: grid;
+    grid-template-columns: minmax(160px, 2fr) 96px 96px 96px 74px 24px;
+    gap: 14px; align-items: center;
+    padding: 12px 18px;
+  }
+  .board-head { font-size: 11.5px; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--line); }
+  .row { border-bottom: 1px solid var(--line); cursor: pointer; }
+  .row:last-child { border-bottom: none; }
+  .row:hover { background: #fafcfb; }
+  .who .name { font-weight: 600; font-size: 15px; }
+  .who .id { font-size: 12px; color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+  .pill.in { background: var(--present-bg); color: var(--present); }
+  .pill.out { background: var(--away-bg); color: var(--away); }
+  .pill .dot { width: 6px; height: 6px; }
+  .pill.in .dot { background: var(--present); }
+  .pill.out .dot { background: var(--away); }
+  .cell-t { font-size: 15px; }
+  .cell-t.empty { color: var(--line-strong); }
+  .hours { font-weight: 600; font-size: 15px; }
+  .chev { color: var(--line-strong); transition: transform .15s; text-align: center; }
+  .row.open .chev { transform: rotate(90deg); color: var(--accent); }
+  .detail { display: none; padding: 4px 18px 16px 18px; border-bottom: 1px solid var(--line); background: #fafcfb; }
+  .detail.open { display: block; }
+  .punch-seq { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .punch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; background: var(--panel); }
+  .punch .tag { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; padding: 1px 6px; border-radius: 4px; }
+  .punch .tag.in { background: var(--present-bg); color: var(--present); }
+  .punch .tag.out { background: var(--away-bg); color: var(--away); }
+
+  /* Empty / error states */
+  .note { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .note h3 { color: var(--ink); font-weight: 600; margin: 0 0 6px; }
+  .note.error h3 { color: var(--alert); }
+  .note code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; background: #f0f2f2; padding: 2px 6px; border-radius: 4px; }
+
+  /* Cameras & doors */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .cam, .door { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+  .cam .frame { aspect-ratio: 16/9; background: #10201f; display: flex; align-items: center; justify-content: center; color: #6a8; font-size: 13px; }
+  .cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam .bar, .door .bar { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; }
+  .cam .bar b, .door .bar b { font-size: 14px; font-weight: 600; }
+  .door { padding: 18px; }
+  .door h4 { margin: 0 0 4px; font-size: 16px; }
+  .door p { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: 1fr; }
+    .board-head { display: none; }
+    .row { grid-template-columns: 1fr auto; grid-auto-rows: min-content; row-gap: 4px; }
+    .row .col-h { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>Attendance Board</b><span id="devlabel"></span></div>
+  <div class="conn"><span id="conndot" class="dot"></span><span id="conntext">Connecting…</span></div>
+  <div class="controls">
+    <input type="date" id="date" />
+    <label class="toggle"><input type="checkbox" id="auto" checked /> Auto-refresh</label>
+    <button class="btn" id="refresh"><span id="reficon">↻</span> Refresh</button>
+    <a class="btn" href="/api/logout" style="text-decoration:none">Log out</a>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" data-view="attendance">Attendance</button>
+  <button class="tab" data-view="cameras">Cameras</button>
+  <button class="tab" data-view="doors">Doors</button>
+</nav>
+
+<main>
+  <!-- Attendance -->
+  <section class="view active" id="view-attendance">
+    <div class="stats">
+      <div class="stat"><div class="n present" id="s-present">–</div><div class="k">On site right now</div></div>
+      <div class="stat"><div class="n" id="s-people">–</div><div class="k">People seen today</div></div>
+      <div class="stat"><div class="n" id="s-punches">–</div><div class="k">Punches recorded</div></div>
+    </div>
+    <div style="margin-bottom:14px"><input type="search" id="filter" placeholder="Search name or ID…" /></div>
+    <div id="roster"></div>
+  </section>
+
+  <!-- Cameras -->
+  <section class="view" id="view-cameras">
+    <div class="grid" id="cams"></div>
+  </section>
+
+  <!-- Doors -->
+  <section class="view" id="view-doors">
+    <div class="grid" id="doors"></div>
+  </section>
+</main>
+
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+const state = { events: [], people: [], config: null };
+
+// ---------- helpers ----------
+function parseTime(t) { const d = new Date(t); return isNaN(d) ? null : d; }
+function hhmm(d) { return d ? d.toTimeString().slice(0,5) : ''; }
+function todayStr() { const d = new Date(); return d.toISOString().slice(0,10); }
+function fmtDur(ms) {
+  if (ms <= 0) return '0h';
+  const m = Math.round(ms/60000), h = Math.floor(m/60);
+  return h ? `${h}h ${String(m%60).padStart(2,'0')}m` : `${m}m`;
+}
+
+// Group events into per-person days, inferring in/out.
+function buildPeople(events, viewingToday) {
+  const map = new Map();
+  for (const e of events) {
+    const t = parseTime(e.time);
+    if (!t) continue;
+    const key = e.employeeNo || e.name || e.cardNo || 'unknown';
+    if (!map.has(key)) map.set(key, { key, name: e.name || '(no name)', id: e.employeeNo || e.cardNo || '—', punches: [] });
+    map.get(key).punches.push({ time: t, status: e.attendanceStatus });
+  }
+
+  const people = [];
+  for (const p of map.values()) {
+    p.punches.sort((a,b) => a.time - b.time);
+    // Assign direction: use device attendanceStatus when present, else alternate in/out.
+    let expectIn = true;
+    for (const pk of p.punches) {
+      const s = (pk.status || '').toLowerCase();
+      if (s.includes('checkin') || s === 'in')      pk.dir = 'in';
+      else if (s.includes('checkout') || s === 'out') pk.dir = 'out';
+      else { pk.dir = expectIn ? 'in' : 'out'; }
+      expectIn = pk.dir === 'out';
+    }
+    // Total on-site time from in→out pairs.
+    let total = 0, openIn = null;
+    for (const pk of p.punches) {
+      if (pk.dir === 'in') openIn = pk.time;
+      else if (openIn) { total += pk.time - openIn; openIn = null; }
+    }
+    const onSite = openIn !== null; // last punch was an unmatched "in"
+    if (onSite && viewingToday) total += Date.now() - openIn;
+
+    const ins = p.punches.filter(x => x.dir === 'in');
+    const outs = p.punches.filter(x => x.dir === 'out');
+    p.firstIn = ins.length ? ins[0].time : null;
+    p.lastOut = outs.length ? outs[outs.length-1].time : null;
+    p.onSite = onSite;
+    p.total = total;
+    people.push(p);
+  }
+  // On-site first, then by earliest arrival.
+  people.sort((a,b) => (b.onSite - a.onSite) || ((a.firstIn||0) - (b.firstIn||0)));
+  return people;
+}
+
+// ---------- render ----------
+function renderRoster() {
+  const q = $('#filter').value.trim().toLowerCase();
+  const list = state.people.filter(p => !q || p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q));
+  const root = $('#roster');
+
+  if (!state.people.length) {
+    root.innerHTML = `<div class="board"><div class="note"><h3>No punches yet for this day</h3>
+      <p>Once someone badges in on the device, they'll appear here. Try another date, or check the connection status above.</p></div></div>`;
+    return;
+  }
+
+  let html = `<div class="board"><div class="board-head">
+    <div>Employee</div><div>Status</div><div>Arrived</div><div>Last out</div><div>On site</div><div></div></div>`;
+  list.forEach((p, i) => {
+    const pill = p.onSite ? `<span class="pill in"><span class="dot"></span>On site</span>`
+                          : `<span class="pill out"><span class="dot"></span>Off site</span>`;
+    html += `<div class="row" data-i="${i}">
+      <div class="who"><div class="name">${esc(p.name)}</div><div class="id mono">${esc(p.id)}</div></div>
+      <div class="col-h">${pill}</div>
+      <div class="col-h cell-t mono ${p.firstIn?'':'empty'}">${p.firstIn?hhmm(p.firstIn):'—'}</div>
+      <div class="col-h cell-t mono ${p.lastOut?'':'empty'}">${p.lastOut?hhmm(p.lastOut):'—'}</div>
+      <div class="col-h hours mono">${fmtDur(p.total)}</div>
+      <div class="chev">›</div>
+    </div>
+    <div class="detail" data-d="${i}"><div class="punch-seq">${
+      p.punches.map(pk => `<span class="punch"><span class="tag ${pk.dir}">${pk.dir.toUpperCase()}</span><span class="mono">${hhmm(pk.time)}</span></span>`).join('')
+    }</div></div>`;
+  });
+  html += `</div>`;
+  root.innerHTML = html;
+
+  root.querySelectorAll('.row').forEach(row => row.addEventListener('click', () => {
+    const d = root.querySelector(`.detail[data-d="${row.dataset.i}"]`);
+    row.classList.toggle('open'); d.classList.toggle('open');
+  }));
+}
+
+function renderStats() {
+  $('#s-present').textContent = state.people.filter(p => p.onSite).length;
+  $('#s-people').textContent = state.people.length;
+  $('#s-punches').textContent = state.events.length;
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ---------- data ----------
+async function load() {
+  const date = $('#date').value || todayStr();
+  const icon = $('#reficon'); icon.classList.add('spin');
+  try {
+    const r = await fetch(`/api/events?date=${date}`);
+    if (r.status === 401) { location.href = '/login'; return; }
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Request failed');
+    state.events = data.events;
+    state.people = buildPeople(data.events, date === todayStr());
+    setConn(true);
+    renderStats(); renderRoster();
+  } catch (e) {
+    setConn(false, e.message);
+    $('#roster').innerHTML = `<div class="board"><div class="note error"><h3>Can't reach the device</h3>
+      <p>${esc(e.message)}</p><p>Check that this machine can reach <code>${state.config?.host||'the device'}</code> and that the details in <code>config.json</code> are correct.</p></div></div>`;
+    $('#s-present').textContent = $('#s-people').textContent = $('#s-punches').textContent = '–';
+  } finally { icon.classList.remove('spin'); }
+}
+
+function setConn(ok, msg) {
+  const dot = $('#conndot'), txt = $('#conntext');
+  dot.className = 'dot ' + (ok ? 'ok' : 'bad');
+  txt.textContent = ok ? `Connected · updated ${hhmm(new Date())}` : (msg ? 'Connection error' : 'Offline');
+}
+
+// ---------- cameras ----------
+function renderCameras() {
+  const cams = state.config?.cameras || [];
+  const root = $('#cams');
+  if (!cams.length) { root.innerHTML = `<div class="note"><h3>No cameras configured</h3><p>Add them to the <code>cameras</code> list in <code>config.json</code>.</p></div>`; return; }
+  root.innerHTML = cams.map(c => `<div class="cam">
+    <div class="frame" data-ch="${esc(c.channel)}"><span>Loading…</span></div>
+    <div class="bar"><b>${esc(c.label)}</b><button class="btn" data-shot="${esc(c.channel)}">↻ Snapshot</button></div>
+  </div>`).join('');
+  root.querySelectorAll('[data-shot]').forEach(b => b.addEventListener('click', () => shot(b.dataset.shot)));
+  cams.forEach(c => shot(c.channel));
+}
+function shot(ch) {
+  const frame = $(`.frame[data-ch="${ch}"]`);
+  if (frame) frame.innerHTML = `<img src="/api/snapshot?channel=${encodeURIComponent(ch)}&t=${Date.now()}"
+    onerror="this.parentNode.innerHTML='<span>No image — check channel ${ch}</span>'" />`;
+}
+
+// ---------- doors ----------
+function renderDoors() {
+  const doors = state.config?.doors || [];
+  const root = $('#doors');
+  if (!doors.length) { root.innerHTML = `<div class="note"><h3>No doors configured</h3><p>Add them to the <code>doors</code> list in <code>config.json</code>.</p></div>`; return; }
+  root.innerHTML = doors.map(d => `<div class="door">
+    <h4>${esc(d.label)}</h4><p class="mono">Door ${esc(d.doorNo)}</p>
+    <button class="btn primary" data-door="${esc(d.doorNo)}">Unlock door</button>
+    <span class="door-msg" data-msg="${esc(d.doorNo)}" style="margin-left:10px;font-size:13px;color:var(--muted)"></span>
+  </div>`).join('');
+  root.querySelectorAll('[data-door]').forEach(b => b.addEventListener('click', () => openDoor(b.dataset.door)));
+}
+async function openDoor(doorNo) {
+  const msg = $(`.door-msg[data-msg="${doorNo}"]`);
+  if (!confirm(`Unlock door ${doorNo} now?`)) return;
+  msg.textContent = 'Sending…';
+  try {
+    const r = await fetch('/api/door', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ doorNo: Number(doorNo), cmd: 'open' }) });
+    const d = await r.json();
+    msg.textContent = r.ok ? 'Unlocked ✓' : `Failed (${d.statusCode||r.status})`;
+    msg.style.color = r.ok ? 'var(--present)' : 'var(--alert)';
+  } catch (e) { msg.textContent = 'Failed — ' + e.message; msg.style.color = 'var(--alert)'; }
+  setTimeout(() => { msg.textContent=''; }, 4000);
+}
+
+// ---------- wiring ----------
+let timer = null;
+function setAuto() {
+  clearInterval(timer);
+  if ($('#auto').checked) timer = setInterval(load, 30000);
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  $('#view-' + t.dataset.view).classList.add('active');
+  if (t.dataset.view === 'cameras') renderCameras();
+  if (t.dataset.view === 'doors') renderDoors();
+}));
+$('#refresh').addEventListener('click', load);
+$('#date').addEventListener('change', load);
+$('#filter').addEventListener('input', renderRoster);
+$('#auto').addEventListener('change', setAuto);
+
+(async function init() {
+  $('#date').value = todayStr();
+  try {
+    state.config = await (await fetch('/api/health')).json();
+    $('#devlabel').textContent = `· ${state.config.host}`;
+    if (!state.config.doorsEnabled) {
+      const dt = document.querySelector('.tab[data-view="doors"]');
+      if (dt) dt.style.display = 'none';
+    }
+  } catch {}
+  await load();
+  setAuto();
+})();
+</script>
+</body>
+</html>

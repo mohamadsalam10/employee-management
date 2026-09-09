@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in · Attendance Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --paper:#f4f6f5; --panel:#fff; --ink:#16262a; --muted:#5c6b6e; --line:#cfd8d6; --accent:#0e6d77; --alert:#b0541f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'IBM Plex Sans',system-ui,sans-serif; background:var(--paper); color:var(--ink);
+         min-height:100vh; display:flex; align-items:center; justify-content:center; -webkit-font-smoothing:antialiased; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:34px 30px; width:min(92vw,360px);
+          box-shadow:0 10px 40px rgba(20,40,44,.08); }
+  h1 { font-size:20px; margin:0 0 4px; letter-spacing:-.01em; }
+  p { margin:0 0 22px; color:var(--muted); font-size:14px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:7px; }
+  input { width:100%; font:inherit; font-size:15px; padding:11px 12px; border:1px solid var(--line); border-radius:9px; }
+  input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(14,109,119,.12); }
+  button { width:100%; margin-top:16px; font:inherit; font-size:15px; font-weight:600; color:#fff; background:var(--accent);
+           border:none; border-radius:9px; padding:12px; cursor:pointer; }
+  button:hover { filter:brightness(1.05); }
+  button:disabled { opacity:.6; cursor:default; }
+  .err { color:var(--alert); font-size:13.5px; margin-top:14px; min-height:18px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Attendance Board</h1>
+    <p>Enter the team password to continue.</p>
+    <label for="pw">Password</label>
+    <input type="password" id="pw" autocomplete="current-password" autofocus />
+    <button id="go">Sign in</button>
+    <div class="err" id="err"></div>
+  </div>
+<script>
+  const pw = document.getElementById('pw'), go = document.getElementById('go'), err = document.getElementById('err');
+  async function submit() {
+    err.textContent = ''; go.disabled = true; go.textContent = 'Signing in…';
+    try {
+      const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pw.value }) });
+      if (r.ok) { location.href = '/'; return; }
+      const d = await r.json().catch(() => ({}));
+      err.textContent = d.error || 'Sign in failed';
+    } catch (e) { err.textContent = 'Could not reach the server'; }
+    go.disabled = false; go.textContent = 'Sign in';
+  }
+  go.addEventListener('click', submit);
+  pw.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+</script>
+</body>
+</html>
