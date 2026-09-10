@@ -27,9 +27,15 @@ services:
         value: "+04:00"
       - key: ENABLE_DOORS
         value: "false"
-      # Cameras: JSON list, e.g. [{"label":"Entrance","channel":"101"}]
-      - key: CAMERAS
-        sync: false
+      # Cameras are auto-discovered from the device — nothing to set here.
+      # Only if your CCTV is on a SEPARATE recorder, point cameras at it:
+      # - key: CAMERA_HOST
+      #   sync: false
+      # - key: CAMERA_PASS
+      #   sync: false
+      # (Optional) force a manual camera list instead of auto-discovery:
+      # - key: CAMERAS
+      #   sync: false
       # For MULTIPLE branches, set BRANCHES instead of the DEVICE_* vars above (see README)
       # - key: BRANCHES
       #   sync: false

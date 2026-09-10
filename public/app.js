@@ -132,11 +132,22 @@ async function loadEmployees() {
 }
 
 // ---------- CAMERAS ----------
-function renderCameras() {
+async function renderCameras() {
   const root = $('#view-cameras');
-  const cams = (state.config.branches.find((x) => x.id === state.branch) || {}).cameras || [];
-  if (!cams.length) { root.innerHTML = `<div class="panel"><div class="empty"><h3>No cameras set up for this branch</h3><p>Add cameras to this branch's configuration to see live snapshots here.</p></div></div>`; return; }
-  root.innerHTML = `<div class="cam-grid">${cams.map((c) => `<div class="cam"><div class="frame" data-ch="${esc(c.channel)}"><span>Loading…</span></div>
+  root.innerHTML = `<div class="panel"><div class="empty">Finding cameras on this branch…</div></div>`;
+  let cams = [];
+  try {
+    const d = await api(`/api/cameras?${b()}`);
+    cams = d.cameras || [];
+  } catch (e) { if (e.message === 'unauth') return; root.innerHTML = errBox(e.message); return; }
+
+  if (!cams.length) {
+    root.innerHTML = `<div class="panel"><div class="empty"><h3>No cameras found on this branch's device</h3>
+      <p>The device didn't return any camera channels. If your CCTV is on a separate recorder, point this branch's camera source at it, and the cameras will list here automatically.</p></div></div>`;
+    return;
+  }
+  root.innerHTML = `<div class="row-controls"><span class="note-inline">${cams.length} camera${cams.length > 1 ? 's' : ''} · refreshing live</span></div>
+    <div class="cam-grid">${cams.map((c) => `<div class="cam"><div class="frame" data-ch="${esc(c.channel)}"><span>Loading…</span></div>
     <div class="bar"><b>${esc(c.label)}</b><span class="live"><span class="dot"></span>Live</span></div></div>`).join('')}</div>`;
   refreshCams();
   clearInterval(state.camTimer);

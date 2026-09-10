@@ -124,10 +124,23 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { month, branch: branch.id, employees: att.monthlyMetrics(branch.id, days, branch.tzOffset) });
     }
 
-    // Camera snapshot proxy
+    // Camera list: manual override if provided, else auto-discover from the device
+    if (route === '/api/cameras') {
+      if (branch.cameras && branch.cameras.length) {
+        return sendJSON(res, 200, { branch: branch.id, source: 'manual', cameras: branch.cameras });
+      }
+      try {
+        const cams = await device.listChannels(branch.camera);
+        return sendJSON(res, 200, { branch: branch.id, source: 'auto', cameras: cams });
+      } catch (e) {
+        return sendJSON(res, 200, { branch: branch.id, source: 'auto', cameras: [], error: e.message });
+      }
+    }
+
+    // Camera snapshot proxy (from the branch's camera source)
     if (route === '/api/snapshot') {
       const channel = q.get('channel') || '101';
-      const r = await device.snapshot(branch, channel);
+      const r = await device.snapshot(branch.camera, channel);
       if (r.statusCode !== 200) return sendJSON(res, r.statusCode, { error: `Device HTTP ${r.statusCode}` });
       res.writeHead(200, { 'Content-Type': r.headers['content-type'] || 'image/jpeg', 'Cache-Control': 'no-store' });
       return res.end(r.buffer);
