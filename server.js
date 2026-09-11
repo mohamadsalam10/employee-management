@@ -77,24 +77,40 @@ const server = http.createServer(async (req, res) => {
     const branch = settings.getBranch(q.get('branch'));
 
     if (route === '/api/config') {
-      return sendJSON(res, 200, {
-        branches: settings.branches.map(settings.publicBranch),
-        doorsEnabled: settings.enableDoors,
+      const meta = store.getBranchMeta();
+      const branches = settings.branches.map((br) => {
+        const pb = settings.publicBranch(br);
+        const m = meta[br.id] || {};
+        return { ...pb, name: m.name || pb.name, city: m.city || pb.city };
       });
+      const cities = [...new Set(branches.map((x) => x.city))];
+      return sendJSON(res, 200, { branches, cities, doorsEnabled: settings.enableDoors });
+    }
+
+    // Setup: assign a branch's display name / city (persisted)
+    if (route === '/api/branchmeta' && req.method === 'GET') return sendJSON(res, 200, store.getBranchMeta());
+    if (route === '/api/branchmeta' && req.method === 'PUT') {
+      const body = await readBody(req); // { id, city, name }
+      if (!body.id) return sendJSON(res, 400, { error: 'id is required' });
+      return sendJSON(res, 200, store.saveBranchMeta(body.id, { city: body.city, name: body.name }));
     }
 
     // Overview: open/closed + on-site for every branch at once (command centre)
     if (route === '/api/overview') {
+      const meta = store.getBranchMeta();
       const rows = await Promise.all(settings.branches.map(async (br) => {
+        const m = meta[br.id] || {};
+        const name = m.name || br.name;
+        const city = m.city || br.city;
         try {
           const date = device.todayInTz(br.tzOffset);
           const events = await device.getEventsForDay(br, date);
           const people = att.summariseDay(events, { viewingToday: true });
           const { alerts } = att.evaluateDay(br.id, people, br.tzOffset);
           const onSite = people.filter((p) => p.onSite).length;
-          return { id: br.id, name: br.name, ok: true, open: onSite > 0, onSite, peopleToday: people.length, alerts: alerts.length };
+          return { id: br.id, name, city, ok: true, open: onSite > 0, onSite, peopleToday: people.length, alerts: alerts.length };
         } catch (e) {
-          return { id: br.id, name: br.name, ok: false, error: e.message, open: false, onSite: 0, peopleToday: 0, alerts: 0 };
+          return { id: br.id, name, city, ok: false, error: e.message, open: false, onSite: 0, peopleToday: 0, alerts: 0 };
         }
       }));
       return sendJSON(res, 200, {

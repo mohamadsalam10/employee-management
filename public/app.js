@@ -1,6 +1,6 @@
 'use strict';
 const $ = (s, r = document) => r.querySelector(s);
-const state = { branch: null, view: 'live', config: null, camTimer: null };
+const state = { branch: null, city: null, view: 'overview', config: null, overview: null, camTimer: null };
 
 // ---------- helpers ----------
 async function api(path) {
@@ -34,27 +34,27 @@ async function renderOverview() {
   root.innerHTML = `<div class="hero"><div class="eyebrow">Command centre</div><div class="status-line"><h2>Loading…</h2></div></div>`;
   try {
     const d = await api('/api/overview');
-    const openTxt = `${d.branchesOpen} of ${d.branchesTotal} ${d.branchesTotal === 1 ? 'branch' : 'branches'} open`;
-    const totalAlerts = d.branches.reduce((s, x) => s + x.alerts, 0);
+    state.overview = d;
+    paintBranchStatuses(); // refresh sidebar dots from the same data
+    const rows = d.branches.filter((x) => x.city === state.city);
+    const open = rows.filter((r) => r.open).length;
+    const staff = rows.reduce((s, r) => s + r.onSite, 0);
+    const totalAlerts = rows.reduce((s, x) => s + x.alerts, 0);
+    const openTxt = `${open} of ${rows.length} ${rows.length === 1 ? 'branch' : 'branches'} open`;
     root.innerHTML = `
       <div class="hero">
-        <div class="eyebrow">Command centre</div>
-        <div class="status-line"><h2>${d.staffOnSite} on site now</h2></div>
-        <div class="sub">${openTxt} · live across all branches</div>
+        <div class="eyebrow">Command centre · ${esc(state.city)}</div>
+        <div class="status-line"><h2>${staff} on site now</h2></div>
+        <div class="sub">${openTxt} · live across ${esc(state.city)}</div>
         <div class="hero-stats">
-          <div><div class="hs-k">Branches open</div><div class="hs-v">${d.branchesOpen}/${d.branchesTotal}</div></div>
-          <div><div class="hs-k">Staff on site</div><div class="hs-v">${d.staffOnSite}</div></div>
+          <div><div class="hs-k">Branches open</div><div class="hs-v">${open}/${rows.length}</div></div>
+          <div><div class="hs-k">Staff on site</div><div class="hs-v">${staff}</div></div>
           <div><div class="hs-k">Open alerts</div><div class="hs-v">${totalAlerts}</div></div>
         </div>
       </div>
-      <div class="eyebrow" style="margin-bottom:12px">Branches</div>
-      <div class="branch-grid">${d.branches.map(branchCard).join('')}</div>`;
-    root.querySelectorAll('.branch-card').forEach((c) => c.addEventListener('click', () => {
-      state.branch = c.dataset.id;
-      $('#branch').value = c.dataset.id;
-      $('#page-ctx').textContent = c.dataset.name;
-      go('live');
-    }));
+      <div class="eyebrow" style="margin-bottom:12px">Branches in ${esc(state.city)}</div>
+      <div class="branch-grid">${rows.length ? rows.map(branchCard).join('') : '<div class="note-inline">No branches in this city.</div>'}</div>`;
+    root.querySelectorAll('.branch-card').forEach((c) => c.addEventListener('click', () => selectBranch(c.dataset.id, 'live')));
   } catch (e) { if (e.message !== 'unauth') root.innerHTML = errBox(e.message); }
 }
 function branchCard(x) {
@@ -220,7 +220,24 @@ async function renderSettings() {
   root.innerHTML = `<div class="panel"><div class="empty">Loading settings…</div></div>`;
   try {
     const [sched, notif] = await Promise.all([api(`/api/schedules?${b()}`), api('/api/notifications')]);
+    const branchRows = (state.config?.branches || []).map((br) => `
+      <div class="sched-row" style="grid-template-columns:1fr 1fr 1fr">
+        <input value="${esc(br.name)}" data-bm-name="${esc(br.id)}">
+        <input value="${esc(br.city)}" data-bm-city="${esc(br.id)}" list="city-options">
+        <span class="note-inline mono" style="align-self:center">${esc(br.id)}</span>
+      </div>`).join('');
+    const cityOpts = [...new Set((state.config?.cities || []))].map((c) => `<option value="${esc(c)}">`).join('');
     root.innerHTML = `
+      <div class="panel"><div class="head"><h2>Branches and cities</h2><span class="sub">Group branches into cities for the top bar</span></div>
+        <div style="padding: var(--space-6)">
+          <datalist id="city-options">${cityOpts}</datalist>
+          <div class="sched-row" style="grid-template-columns:1fr 1fr 1fr"><span class="eyebrow">Display name</span><span class="eyebrow">City</span><span class="eyebrow">Branch id</span></div>
+          <div id="branch-rows">${branchRows || '<div class="note-inline">Branches come from your deploy configuration. Add them there, then set their city here.</div>'}</div>
+          <div style="margin-top:var(--space-4)"><button class="btn primary" id="save-branches">Save branches</button> <span class="note-inline" id="branches-msg"></span></div>
+          <p class="note-inline" style="margin-top:var(--space-3)">Type a new city name to create it. The top-bar dropdown lists whatever cities you use here.</p>
+        </div>
+      </div>
+
       <div class="panel"><div class="head"><h2>Working hours</h2><span class="sub">Used to flag late arrivals and early exits</span></div>
         <div style="padding: var(--space-6)">
           <div class="eyebrow" style="margin-bottom:8px">Default (everyone)</div>
@@ -283,6 +300,27 @@ async function renderSettings() {
       try { await apiPut('/api/notifications', payload); $('#notif-msg').textContent = 'Saved'; $('#notif-msg').style.color = 'var(--color-success)'; }
       catch (err) { $('#notif-msg').textContent = err.message; $('#notif-msg').style.color = 'var(--color-danger)'; }
     });
+
+    const saveBranchesBtn = $('#save-branches');
+    if (saveBranchesBtn) saveBranchesBtn.addEventListener('click', async () => {
+      const msg = $('#branches-msg');
+      try {
+        for (const inp of document.querySelectorAll('[data-bm-name]')) {
+          const id = inp.dataset.bmName;
+          const name = inp.value.trim();
+          const city = (document.querySelector(`[data-bm-city="${CSS.escape(id)}"]`).value || '').trim() || 'Dubai';
+          await apiPut('/api/branchmeta', { id, name, city });
+        }
+        // reload config so the city dropdown + sidebar reflect the changes
+        state.config = await api('/api/config');
+        const cities = state.config.cities.length ? state.config.cities : ['Dubai'];
+        $('#city').innerHTML = cities.map((c) => `<option value="${esc(c)}"${c === state.city ? ' selected' : ''}>${esc(c)}</option>`).join('');
+        if (!cities.includes(state.city)) { state.city = cities[0]; $('#city').value = state.city; }
+        buildBranchNav();
+        updateCrumb();
+        msg.textContent = 'Saved'; msg.style.color = 'var(--color-success)';
+      } catch (err) { msg.textContent = err.message; msg.style.color = 'var(--color-danger)'; }
+    });
   } catch (e) { if (e.message !== 'unauth') root.innerHTML = errBox(e.message); }
 }
 
@@ -305,6 +343,48 @@ function tickClock() {
 }
 setInterval(tickClock, 1000); tickClock();
 
+function branchesInCity() {
+  return (state.config?.branches || []).filter((x) => x.city === state.city);
+}
+function updateCrumb() {
+  const name = currentBranchName();
+  const isBranchView = BRANCH_VIEWS.has(state.view);
+  $('#crumb').innerHTML = isBranchView && name
+    ? `<b>${esc(name)}</b> · ${TITLES[state.view]}`
+    : TITLES[state.view];
+}
+
+// Build the sidebar branch list for the selected city.
+function buildBranchNav() {
+  $('#city-label').textContent = state.city;
+  const list = branchesInCity();
+  const nav = $('#branch-nav');
+  if (!list.length) { nav.innerHTML = `<div class="note-inline" style="padding:6px 12px">No branches in this city yet.</div>`; return; }
+  nav.innerHTML = list.map((br) => `<button class="branch-item ${br.id === state.branch ? 'active' : ''}" data-id="${esc(br.id)}">
+    <span class="bdot" data-dot="${esc(br.id)}"></span><span class="bname">${esc(br.name)}</span><span class="bcount" data-count="${esc(br.id)}"></span>
+  </button>`).join('');
+  nav.querySelectorAll('.branch-item').forEach((el) => el.addEventListener('click', () => selectBranch(el.dataset.id)));
+  paintBranchStatuses();
+}
+function selectBranch(id, view) {
+  state.branch = id;
+  document.querySelectorAll('.branch-item').forEach((el) => el.classList.toggle('active', el.dataset.id === id));
+  go(view || (BRANCH_VIEWS.has(state.view) ? state.view : 'live'));
+}
+// Fetch open/closed + on-site once and paint the sidebar dots/counts.
+async function paintBranchStatuses() {
+  try {
+    const d = await api('/api/overview');
+    state.overview = d;
+    for (const r of d.branches) {
+      const dot = document.querySelector(`.bdot[data-dot="${CSS.escape(r.id)}"]`);
+      const cnt = document.querySelector(`.bcount[data-count="${CSS.escape(r.id)}"]`);
+      if (dot) dot.classList.toggle('open', r.open);
+      if (cnt) cnt.textContent = r.onSite ? String(r.onSite) : '';
+    }
+  } catch { /* nav still works without live dots */ }
+}
+
 // ---------- routing ----------
 const TITLES = { overview: 'Overview', live: 'Live', history: 'History', employees: 'Employees', cameras: 'Cameras', settings: 'Settings' };
 const RENDER = { overview: renderOverview, live: renderLive, history: renderHistory, employees: renderEmployees, cameras: renderCameras, settings: renderSettings };
@@ -315,23 +395,30 @@ function go(view) {
   document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.view === view));
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
-  $('#page-title').textContent = TITLES[view];
   $('#branch-status').style.display = 'none'; // renderLive re-shows it with real state
+  updateCrumb();
   if (view !== 'cameras') clearInterval(state.camTimer);
   RENDER[view]();
 }
 
 document.querySelectorAll('.nav a').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.view); }));
-$('#refresh').addEventListener('click', () => { $('#reficon').classList.add('spin'); RENDER[state.view](); setTimeout(() => $('#reficon').classList.remove('spin'), 500); });
-$('#branch').addEventListener('change', (e) => { state.branch = e.target.value; $('#page-ctx').textContent = e.target.selectedOptions[0].text; RENDER[state.view](); });
+$('#refresh').addEventListener('click', () => { $('#reficon').classList.add('spin'); RENDER[state.view](); if (state.view !== 'overview') paintBranchStatuses(); setTimeout(() => $('#reficon').classList.remove('spin'), 500); });
+$('#city').addEventListener('change', (e) => {
+  state.city = e.target.value;
+  const list = branchesInCity();
+  state.branch = list[0]?.id || null;
+  buildBranchNav();
+  go(state.view === 'overview' ? 'overview' : 'live');
+});
 
 (async function init() {
   try {
     state.config = await api('/api/config');
-    const sel = $('#branch');
-    sel.innerHTML = state.config.branches.map((br) => `<option value="${esc(br.id)}">${esc(br.name)}</option>`).join('');
-    state.branch = state.config.branches[0]?.id;
-    $('#page-ctx').textContent = state.config.branches[0]?.name || '';
+    const cities = state.config.cities && state.config.cities.length ? state.config.cities : ['Dubai'];
+    $('#city').innerHTML = cities.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    state.city = cities[0];
+    state.branch = branchesInCity()[0]?.id || state.config.branches[0]?.id || null;
+    buildBranchNav();
     go('overview');
   } catch (e) { if (e.message !== 'unauth') $('#view-overview').innerHTML = errBox(e.message); }
 })();

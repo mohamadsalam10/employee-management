@@ -64,19 +64,22 @@ list from there instead — still automatically, no per-camera entry:
 `CAMERA_HOST`, `CAMERA_PORT`, `CAMERA_USER`, `CAMERA_PASS` (single branch), or the `cameraHost` /
 `cameraPort` / `cameraUser` / `cameraPass` keys inside a `BRANCHES` entry.
 
-### More than one branch
+### Branches and cities
 
 When you're ready for multiple warehouses, set **one** variable called `BRANCHES` instead of the
-`DEVICE_*` ones. It's a JSON list, one entry per branch:
+`DEVICE_*` ones. It's a JSON list, one entry per branch, each with a `city`:
 
 ```json
 [
-  {"id":"alquoz","name":"Al Quoz","host":"alquoz.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00","cameras":[{"label":"Entrance","channel":"101"}]},
-  {"id":"dip","name":"DIP","host":"dip.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00","cameras":[]}
+  {"id":"alquoz","name":"Al Quoz","city":"Dubai","host":"alquoz.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00"},
+  {"id":"dip1","name":"DIP 1","city":"Dubai","host":"dip1.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00"},
+  {"id":"icad1","name":"ICAD 1","city":"Abu Dhabi","host":"icad1.mynetgear.com","port":50443,"user":"admin","pass":"…","tzOffset":"+04:00"}
 ]
 ```
 
-The branch dropdown at the top of the sidebar switches between them.
+The top bar has a **city** dropdown; picking a city lists that city's branches in the sidebar, and you
+click a branch to open it. You can rename a branch and move it to another city (or a brand-new city)
+under **Settings → Branches and cities** without touching the deploy config.
 
 ---
 

@@ -14,17 +14,17 @@
   <aside class="sidebar">
     <div class="logo"><span class="glyph"></span><span class="word">storage.ae</span></div>
 
-    <div class="branch-select">
-      <span class="eyebrow">Branch</span>
-      <select id="branch"></select>
-    </div>
-
     <nav class="nav" id="nav">
       <div class="nav-group">Oversight</div>
       <a data-view="overview" class="active">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Overview
       </a>
+
+      <div class="nav-group">Branches · <span id="city-label">Dubai</span></div>
+      <div id="branch-nav"></div>
+
+      <div class="nav-group">This branch</div>
       <a data-view="live">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         Live
@@ -37,7 +37,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Employees
       </a>
-      <div class="nav-group">This branch</div>
       <a data-view="cameras">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         Cameras
@@ -60,8 +59,11 @@
 
   <div class="main">
     <div class="topbar">
-      <h1 id="page-title">Overview</h1>
-      <span class="ctx" id="page-ctx"></span>
+      <div class="citybar">
+        <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <select class="city-select" id="city"></select>
+      </div>
+      <span class="crumb" id="crumb"></span>
       <span class="status-pill closed" id="branch-status" style="display:none"><span class="d"></span><span id="branch-status-text">Closed</span></span>
       <span class="clock"><span class="dot"></span><span id="clock">--:--:--</span> GST</span>
       <button class="btn" id="refresh"><svg id="reficon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh</button>
