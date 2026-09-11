@@ -3,7 +3,8 @@
 A login-protected dashboard for your warehouse branches. It reads punch events from your
 Hikvision access-control device and shows:
 
-- **Live** — who's on site right now, plus today's late-arrival and early-leave alerts.
+- **Overview** — every branch at a glance: whether each is **Open** or **Closed**, how many staff are on site, and open alerts. Click a branch to jump into it.
+- **Live** — an **Open / Closed** banner for the branch (open when anyone is on site), who's on site right now, plus today's late-arrival and early-leave alerts.
 - **History** — pick any day and see each employee's arrival, last-out, hours, and flags.
 - **Employees** — per-employee monthly metrics: average punch-in, average punch-out, average hours, times late, early leaves.
 - **Cameras** — near-live snapshots from each branch's cameras.

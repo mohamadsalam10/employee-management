@@ -168,4 +168,48 @@ td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .stats { grid-template-columns: 1fr 1fr; }
   .content { padding: var(--space-4); }
   .topbar { padding: var(--space-4); }
+  .branch-grid { grid-template-columns: 1fr !important; }
 }
+
+/* ---- nav groups ---- */
+.nav-group { font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.13em; text-transform: uppercase; color: var(--color-muted); padding: 14px 12px 6px; }
+.nav-group span { color: var(--brand-orange); }
+
+/* ---- topbar clock + status pill ---- */
+.topbar .clock { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); display: inline-flex; align-items: center; gap: 8px; }
+.topbar .clock .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-success); }
+.status-pill { display: inline-flex; align-items: center; gap: 7px; font-size: var(--text-xs); font-weight: 600; padding: 5px 11px; border-radius: var(--radius-soft); letter-spacing: 0.02em; }
+.status-pill .d { width: 7px; height: 7px; border-radius: 50%; }
+.status-pill.open { background: rgb(31 138 77 / 12%); color: var(--color-success); }
+.status-pill.open .d { background: var(--color-success); }
+.status-pill.closed { background: var(--color-surface); color: var(--color-muted); }
+.status-pill.closed .d { background: var(--color-muted); }
+
+/* ---- hero banner ---- */
+.hero { padding: 24px 26px; border-radius: var(--radius-soft); margin-bottom: var(--space-6); background: var(--brand-orange); color: #fff; }
+.hero.closed { background: var(--brand-ink); }
+.hero .eyebrow { color: rgb(255 255 255 / 82%); }
+.hero .status-line { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; }
+.hero h2 { font-size: var(--text-3xl); font-weight: 700; letter-spacing: -0.02em; line-height: 1.08; margin: 0; }
+.hero .sub { color: rgb(255 255 255 / 90%); font-size: var(--text-sm); }
+.hero .hero-stats { display: flex; gap: 34px; margin-top: 20px; flex-wrap: wrap; }
+.hero .hs-k { font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(255 255 255 / 80%); }
+.hero .hs-v { font-size: var(--text-2xl); font-weight: 700; line-height: 1.1; margin-top: 4px; }
+.hero .pill-on-hero { display: inline-flex; align-items: center; gap: 7px; font-size: var(--text-sm); font-weight: 600; padding: 4px 12px; border-radius: var(--radius-soft); background: rgb(255 255 255 / 18%); color: #fff; }
+.hero .pill-on-hero .d { width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+
+/* ---- branch overview cards ---- */
+.branch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4); }
+.branch-card { border: 1px solid var(--color-border); border-radius: var(--radius-soft); overflow: hidden; position: relative; cursor: pointer; text-align: left; background: var(--color-bg); transition: border-color var(--dur-fast) var(--easing); width: 100%; font: inherit; }
+.branch-card:hover { border-color: var(--color-border-strong); }
+.branch-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--color-muted); }
+.branch-card.open::before { background: var(--color-success); }
+.branch-card.alert::before { background: var(--color-warning); }
+.branch-card.err::before { background: var(--color-danger); }
+.branch-card .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 16px 12px; }
+.branch-card .bname { font-weight: 600; font-size: var(--text-lg); letter-spacing: -0.01em; }
+.branch-card .metrics { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--color-border); }
+.branch-card .m { padding: 11px 14px; border-right: 1px solid var(--color-border); }
+.branch-card .m:last-child { border-right: none; }
+.branch-card .m .k { font-size: 10px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted); }
+.branch-card .m .v { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 600; margin-top: 2px; }

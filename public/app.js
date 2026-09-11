@@ -28,21 +28,73 @@ const b = () => `branch=${encodeURIComponent(state.branch)}`;
 function setConn(ok, msg) { $('#conn').textContent = ok ? `Connected · ${new Date().toTimeString().slice(0, 5)}` : (msg || 'Offline'); $('#conn').style.color = ok ? 'var(--color-success)' : 'var(--color-danger)'; }
 function errBox(msg) { return `<div class="panel"><div class="err"><h3>Can't reach the device</h3><p class="note-inline">${esc(msg)}</p><p class="note-inline">Check the branch is online and reachable at its configured address.</p></div></div>`; }
 
+// ---------- OVERVIEW (command centre) ----------
+async function renderOverview() {
+  const root = $('#view-overview');
+  root.innerHTML = `<div class="hero"><div class="eyebrow">Command centre</div><div class="status-line"><h2>Loading…</h2></div></div>`;
+  try {
+    const d = await api('/api/overview');
+    const openTxt = `${d.branchesOpen} of ${d.branchesTotal} ${d.branchesTotal === 1 ? 'branch' : 'branches'} open`;
+    const totalAlerts = d.branches.reduce((s, x) => s + x.alerts, 0);
+    root.innerHTML = `
+      <div class="hero">
+        <div class="eyebrow">Command centre</div>
+        <div class="status-line"><h2>${d.staffOnSite} on site now</h2></div>
+        <div class="sub">${openTxt} · live across all branches</div>
+        <div class="hero-stats">
+          <div><div class="hs-k">Branches open</div><div class="hs-v">${d.branchesOpen}/${d.branchesTotal}</div></div>
+          <div><div class="hs-k">Staff on site</div><div class="hs-v">${d.staffOnSite}</div></div>
+          <div><div class="hs-k">Open alerts</div><div class="hs-v">${totalAlerts}</div></div>
+        </div>
+      </div>
+      <div class="eyebrow" style="margin-bottom:12px">Branches</div>
+      <div class="branch-grid">${d.branches.map(branchCard).join('')}</div>`;
+    root.querySelectorAll('.branch-card').forEach((c) => c.addEventListener('click', () => {
+      state.branch = c.dataset.id;
+      $('#branch').value = c.dataset.id;
+      $('#page-ctx').textContent = c.dataset.name;
+      go('live');
+    }));
+  } catch (e) { if (e.message !== 'unauth') root.innerHTML = errBox(e.message); }
+}
+function branchCard(x) {
+  const cls = !x.ok ? 'err' : (x.open ? 'open' : (x.alerts ? 'alert' : ''));
+  const status = !x.ok
+    ? `<span class="status-pill closed"><span class="d"></span>Offline</span>`
+    : (x.open ? `<span class="status-pill open"><span class="d"></span>Open</span>` : `<span class="status-pill closed"><span class="d"></span>Closed</span>`);
+  return `<button class="branch-card ${cls}" data-id="${esc(x.id)}" data-name="${esc(x.name)}">
+    <div class="top"><div class="bname">${esc(x.name)}</div>${status}</div>
+    <div class="metrics">
+      <div class="m"><div class="k">On site</div><div class="v">${x.onSite}</div></div>
+      <div class="m"><div class="k">Today</div><div class="v">${x.peopleToday}</div></div>
+      <div class="m"><div class="k">Alerts</div><div class="v">${x.alerts}</div></div>
+    </div></button>`;
+}
+
 // ---------- LIVE ----------
 async function renderLive() {
   const root = $('#view-live');
-  root.innerHTML = `<div class="stats"><div class="stat hero"><div class="k">On site right now</div><div class="n">…</div></div>
-    <div class="stat"><div class="k">People today</div><div class="n">…</div></div>
-    <div class="stat"><div class="k">Punches today</div><div class="n">…</div></div>
-    <div class="stat"><div class="k">Alerts today</div><div class="n">…</div></div></div><div id="live-body"></div>`;
+  root.innerHTML = `<div class="hero"><div class="eyebrow">Live status</div><div class="status-line"><h2>Loading…</h2></div></div>`;
   try {
     const d = await api(`/api/live?${b()}`);
     setConn(true);
-    const stats = root.querySelectorAll('.stat .n');
-    stats[0].textContent = d.onSite; stats[1].textContent = d.peopleToday; stats[2].textContent = d.punches; stats[3].textContent = d.alerts.length;
-
+    setBranchStatus(d.open);
     const onSite = d.people.filter((p) => p.onSite);
-    let html = `<div class="panel"><div class="head"><h2>On site now</h2><span class="sub">${onSite.length} present</span></div>`;
+    let html = `<div class="hero ${d.open ? '' : 'closed'}">
+      <div class="eyebrow">${esc(currentBranchName())} · live status</div>
+      <div class="status-line">
+        <h2>${d.open ? 'Open' : 'Closed'}</h2>
+        <span class="pill-on-hero"><span class="d"></span>${d.onSite} on site</span>
+      </div>
+      <div class="sub">${d.open ? `${d.onSite} ${d.onSite === 1 ? 'person is' : 'people are'} on site right now` : 'Nobody is on site right now'}</div>
+      <div class="hero-stats">
+        <div><div class="hs-k">People today</div><div class="hs-v">${d.peopleToday}</div></div>
+        <div><div class="hs-k">Punches today</div><div class="hs-v">${d.punches}</div></div>
+        <div><div class="hs-k">Alerts today</div><div class="hs-v">${d.alerts.length}</div></div>
+      </div>
+    </div>`;
+
+    html += `<div class="panel"><div class="head"><h2>On site now</h2><span class="sub">${onSite.length} present</span></div>`;
     if (!onSite.length) html += `<div class="empty"><h3>Nobody on site</h3><p>Punches will appear here as employees badge in.</p></div>`;
     else {
       html += `<table><thead><tr><th>Employee</th><th>Since</th><th>On site</th><th>Status</th></tr></thead><tbody>`;
@@ -62,8 +114,8 @@ async function renderLive() {
         <div><span class="who">${esc(a.name)}</span> ${late ? `arrived ${fmtMins(a.minutes)} late` : `left ${fmtMins(a.minutes)} early`} <span class="note-inline">· ${a.at}</span></div></div>`;
     }
     html += `</div>`;
-    $('#live-body').innerHTML = html;
-  } catch (e) { if (e.message !== 'unauth') { setConn(false, 'Connection error'); $('#live-body').innerHTML = errBox(e.message); } }
+    root.innerHTML = html;
+  } catch (e) { if (e.message !== 'unauth') { setConn(false, 'Connection error'); root.innerHTML = errBox(e.message); } }
 }
 
 // ---------- HISTORY ----------
@@ -234,15 +286,37 @@ async function renderSettings() {
   } catch (e) { if (e.message !== 'unauth') root.innerHTML = errBox(e.message); }
 }
 
+// ---------- helpers for status + clock ----------
+function currentBranchName() {
+  const br = (state.config?.branches || []).find((x) => x.id === state.branch);
+  return br ? br.name : '';
+}
+function setBranchStatus(open) {
+  const pill = $('#branch-status');
+  pill.style.display = 'inline-flex';
+  pill.className = 'status-pill ' + (open ? 'open' : 'closed');
+  $('#branch-status-text').textContent = open ? 'Open' : 'Closed';
+}
+function tickClock() {
+  // Gulf Standard Time (UTC+4), independent of the viewer's device clock
+  const now = new Date();
+  const gst = new Date(now.getTime() + (now.getTimezoneOffset() + 240) * 60000);
+  $('#clock').textContent = gst.toTimeString().slice(0, 8);
+}
+setInterval(tickClock, 1000); tickClock();
+
 // ---------- routing ----------
-const TITLES = { live: 'Live', history: 'History', employees: 'Employees', cameras: 'Cameras', settings: 'Settings' };
-const RENDER = { live: renderLive, history: renderHistory, employees: renderEmployees, cameras: renderCameras, settings: renderSettings };
+const TITLES = { overview: 'Overview', live: 'Live', history: 'History', employees: 'Employees', cameras: 'Cameras', settings: 'Settings' };
+const RENDER = { overview: renderOverview, live: renderLive, history: renderHistory, employees: renderEmployees, cameras: renderCameras, settings: renderSettings };
+// Views that are about one branch show the Open/Closed pill; company-wide/config views don't.
+const BRANCH_VIEWS = new Set(['live', 'history', 'employees', 'cameras']);
 function go(view) {
   state.view = view;
   document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.view === view));
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
   $('#page-title').textContent = TITLES[view];
+  $('#branch-status').style.display = 'none'; // renderLive re-shows it with real state
   if (view !== 'cameras') clearInterval(state.camTimer);
   RENDER[view]();
 }
@@ -258,6 +332,6 @@ $('#branch').addEventListener('change', (e) => { state.branch = e.target.value; 
     sel.innerHTML = state.config.branches.map((br) => `<option value="${esc(br.id)}">${esc(br.name)}</option>`).join('');
     state.branch = state.config.branches[0]?.id;
     $('#page-ctx').textContent = state.config.branches[0]?.name || '';
-    go('live');
-  } catch (e) { if (e.message !== 'unauth') $('#view-live').innerHTML = errBox(e.message); }
+    go('overview');
+  } catch (e) { if (e.message !== 'unauth') $('#view-overview').innerHTML = errBox(e.message); }
 })();

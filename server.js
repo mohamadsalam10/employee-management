@@ -83,6 +83,28 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // Overview: open/closed + on-site for every branch at once (command centre)
+    if (route === '/api/overview') {
+      const rows = await Promise.all(settings.branches.map(async (br) => {
+        try {
+          const date = device.todayInTz(br.tzOffset);
+          const events = await device.getEventsForDay(br, date);
+          const people = att.summariseDay(events, { viewingToday: true });
+          const { alerts } = att.evaluateDay(br.id, people, br.tzOffset);
+          const onSite = people.filter((p) => p.onSite).length;
+          return { id: br.id, name: br.name, ok: true, open: onSite > 0, onSite, peopleToday: people.length, alerts: alerts.length };
+        } catch (e) {
+          return { id: br.id, name: br.name, ok: false, error: e.message, open: false, onSite: 0, peopleToday: 0, alerts: 0 };
+        }
+      }));
+      return sendJSON(res, 200, {
+        branches: rows,
+        branchesOpen: rows.filter((r) => r.open).length,
+        branchesTotal: rows.length,
+        staffOnSite: rows.reduce((s, r) => s + r.onSite, 0),
+      });
+    }
+
     // Live: today's on-site status + alerts
     if (route === '/api/live') {
       const date = device.todayInTz(branch.tzOffset);
@@ -92,6 +114,7 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, {
         date, branch: branch.id,
         onSite: people.filter((p) => p.onSite).length,
+        open: people.some((p) => p.onSite),
         peopleToday: people.length,
         punches: events.length,
         people: people.map((p) => slimPerson(p, branch.tzOffset)),
